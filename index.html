@@ -556,12 +556,12 @@ function showToast(msg) {
 // ============================================================
 // Canvas 点击 / 触摸处理
 // ============================================================
-function getBoardCoord(e) {
+function getBoardCoord(clientX, clientY) {
   const rect = DOM.canvas.getBoundingClientRect();
-  const scaleX = DOM.canvas.width / rect.width;
-  const scaleY = DOM.canvas.height / rect.height;
-  const canvasX = (e.clientX - rect.left) * scaleX;
-  const canvasY = (e.clientY - rect.top) * scaleY;
+  const scaleX = BOARD_PX / rect.width;
+  const scaleY = BOARD_PX / rect.height;
+  const canvasX = (clientX - rect.left) * scaleX;
+  const canvasY = (clientY - rect.top) * scaleY;
 
   const col = Math.floor((canvasX - PADDING) / (CELL_SIZE + GAP));
   const row = Math.floor((canvasY - PADDING) / (CELL_SIZE + GAP));
@@ -570,15 +570,23 @@ function getBoardCoord(e) {
   return { row, col };
 }
 
+let lastTapTime = 0;
+
 function onCanvasClick(e) {
-  const coord = getBoardCoord(e);
+  // 防止移动端 click 和 touchstart 双重触发
+  if (Date.now() - lastTapTime < 500) return;
+  const coord = getBoardCoord(e.clientX, e.clientY);
   if (!coord) return;
   onCellClick(coord.row, coord.col);
 }
 
 function onCanvasTouch(e) {
   e.preventDefault();
-  const coord = getBoardCoord(e.changedTouches[0]);
+  lastTapTime = Date.now();
+  // touchstart 坐标比 touchend 更可靠
+  const touch = e.touches[0] || e.changedTouches[0];
+  if (!touch) return;
+  const coord = getBoardCoord(touch.clientX, touch.clientY);
   if (!coord) return;
   onCellClick(coord.row, coord.col);
 }
@@ -842,7 +850,7 @@ function init() {
 
   // 绑定事件
   DOM.canvas.addEventListener('click', onCanvasClick);
-  DOM.canvas.addEventListener('touchend', onCanvasTouch);
+  DOM.canvas.addEventListener('touchstart', onCanvasTouch, { passive: false });
 
   createBoard();
   ensureMoves();
